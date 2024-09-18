@@ -2,68 +2,14 @@ import streamlit as st
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation as LDA
 import pandas as pd
-
-# Sample product details and descriptions
-products = pd.DataFrame(
-    {
-        "product_name": [
-            "Life Insurance",
-            "Health Insurance",
-            "Car Insurance",
-            "Home Insurance",
-            "Investment Plan",
-        ],
-        "description": [
-            "Life cover with death benefit and tax savings",
-            "Comprehensive health coverage for individuals and families",
-            "Covers damage to vehicles, accidents, and theft",
-            "Protection for home and property, including fire and natural disasters",
-            "Grow your money with safe and high returns in investment funds",
-        ],
-    }
-)
-
-def process_input(user_input, product_descriptions):
-    vectorizer = CountVectorizer()
-    X = vectorizer.fit_transform(product_descriptions)
-
-    # Simulate relevance by matching keywords
-    relevance_scores = []
-    for description in product_descriptions:
-        common_words = set(user_input.lower().split()) & set(
-            description.lower().split()
-        )
-        relevance = len(common_words) / len(description.split())
-        relevance_scores.append(relevance)
-
-    # Create a dataframe of product descriptions with relevance scores
-    product_df = pd.DataFrame(
-        {
-            "Product": products["product_name"],
-            "Description": product_descriptions,
-            "Relevance": relevance_scores,
-        }
-    )
-    product_df = product_df.sort_values(by="Relevance", ascending=False)
-    return product_df
-
-def main():
-    # Sidebar
-    with st.sidebar:
-         #  st.image("logo.webp", width=150)  # Replace with your logo path
-
-        st.image("https://microproducts.jubileeinsurance.com/images/abc/main-logo.svg", width=150) 
-
-        st.markdown('<div class="live-free" style="padding-top: 70px"></div>', unsafe_allow_html=True)
+import requests
+import os
+import datetime
+import sqlite3
 
 
-        st.image("advert4.png", use_column_width=True)  # Replace with your advert image
-        st.image("advert3.png", use_column_width=True)  # Uncomment if you have a second advert
-
-        st.markdown("---")
-      
-        st.markdown(
-            """
+# Variables
+top_cards = """
             <div style="display: flex; justify-content: space-between;">
                 <div class="footer-links" style="width: 45%;">
                     <a class="sidebar-link" target="_blank" href="https://jubileeinsurance.com/ke/blog/">Blog</a><br>
@@ -85,13 +31,9 @@ def main():
                     </div>
                 </div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # Main content
-    st.markdown(
-        """
+            """
+# style css
+styles = """
         <style>
         .main-logo {
             display: flex;
@@ -134,39 +76,40 @@ def main():
             background-color: #f9f9f9;
             width: 45%;
         }
+                .conversation {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .user-input {
+            text-align: right;
+            width: 45%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #e0f7fa;
+        }
+        .response {
+            text-align: left;
+            width: 45%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f1f8e9;
+        }
+        .timestamp {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .conversation-log {
+            margin-bottom: 20px;
+        }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-   # st.image("icon-top.png", width=250) 
-
-    # Center the image using HTML and CSS
-
-    # Display the image with HTML and CSS, pointing to the static directory
-    st.markdown(
         """
-        <div style="text-align: center;">
-            <img src="https://jubileeinsurance.com/ug/wp-content/uploads/2024/09/icon-top-1.png" width="120">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown(
-        """
-        <div class="main-header">
-            <div style="text-align:center; font-weight: bold; font-size: 34px;" class="header-text">Jisort, Jielimishe With Jub-GPT</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.markdown('<div class="live-free">#LiveFree</div>', unsafe_allow_html=True)
-
-    # Inline block cards for random questions
-    st.markdown(
-        """
+defaults_questions = """
         <div class="question-cards">
             <div class="card">
                 <strong>What insurance products can I get to cover my health needs? <svg class="inline" width="0.5rem" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L9 1M9 1H2.5M9 1V7.22222" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"></path></svg></strong>
@@ -178,44 +121,342 @@ def main():
                 <strong>How can I find the best investment plan for my future? <svg class="inline" width="0.5rem" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 9L9 1M9 1H2.5M9 1V7.22222" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"></path></svg></strong>
             </div>
         </div>
+        """
+
+
+# Render the question cards section
+def render_defaults_questions():
+    defaults_questions = """
+    <div class="question-cards">
+        <div class="card">
+            <strong>What insurance products can I get to cover my health needs? 
+            <svg class="inline" width="0.5rem" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9L9 1M9 1H2.5M9 1V7.22222" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </strong>
+        </div>
+        <div class="card">
+            <strong>How can I find the best investment plan for my future? 
+            <svg class="inline" width="0.5rem" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9L9 1M9 1H2.5M9 1V7.22222" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </strong>
+        </div>
+        <div class="card">
+            <strong>What are the steps in the insurance claim process? 
+            <svg class="inline" width="0.5rem" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 9L9 1M9 1H2.5M9 1V7.22222" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </strong>
+        </div>
+    </div>
+    """
+    st.markdown(defaults_questions, unsafe_allow_html=True)
+
+
+# Custom CSS for styling the cards and buttons
+def add_custom_css():
+    st.markdown(
+        """
+        <style>
+        .question-cards {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .question-cards .card {
+            background-color: #f0f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .question-cards .card:hover {
+            background-color: #e0e7ff;
+        }
+        .question-cards .card svg {
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .quick-response {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s ease;
+        }
+        .quick-response:hover {
+            background-color: #0056b3;
+        }
+        </style>
         """,
-        unsafe_allow_html=True
-    )
-
-    # Chat search bar
-   # st.text_input("Type your question here:")
-
-  # Input area for user request
-    user_input = st.text_area(
-        "**Describe what you're looking for**",  # Use Markdown for bold text
-        value="",
-        placeholder="E.g., I need insurance for my car in case of accidents and theft.",
+        unsafe_allow_html=True,
     )
 
 
-    # Process the input and recommend products
-    if st.button("Get Recommendation"):
+# a . Log Conversations Logs && # Ensure log file exists
+LOG_FILE = "conversation_log.txt"
+if not os.path.exists(LOG_FILE):
+    open(LOG_FILE, "w").close()
 
-        if user_input:
-            # Process the input and get relevant products
-            recommendations = process_input(user_input, products["description"])
 
-            # Display the top recommended product
-            top_product = recommendations.iloc[0]
-            st.write(f"**Top Recommended Product: {top_product['Product']}**")
-            st.write(f"Description: {top_product['Description']}")
-            st.progress(top_product["Relevance"])
+# Initialize database
+def init_db():
+    conn = sqlite3.connect("conversation_history_.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS conversation_history (
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT,
+            user_input TEXT,
+            response TEXT
+        )
+    """
+    )
+    # Create conversation_snapshot table
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS conversation_snapshot (
+            snapshot_id INTEGER,
+            user_id INTEGER,
+            timestamp TEXT,
+            user_input TEXT,
+            response TEXT
+        )
+        """
+    )
+    conn.commit()
+    return conn
 
-            # Display all other products sorted by relevance
-            st.write("### Other relevant products:")
-            for i, row in recommendations.iloc[1:].iterrows():
-                st.write(
-                    f"**{row['Product']}** - Relevance: {round(row['Relevance']*100, 2)}%"
-                )
-                st.write(f"Description: {row['Description']}")
+
+# Store conversation into the database
+def store_conversation(timestamp, user_input, response):
+    conn = init_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO conversation_history (timestamp, user_input, response)
+        VALUES (?, ?, ?)
+        """,
+        (timestamp, user_input, response),
+    )
+    conn.commit()
+    conn.close()
+
+
+# Read conversation history from the database
+def read_conversation_history():
+    conn = init_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM conversation_history ORDER BY timestamp ASC")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+def clear_logs():
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "w") as log:
+            log.write("")  # Clear the file content
+    conn = sqlite3.connect("conversation_history_.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM conversation_history")  # Clear database entries
+    conn.commit()
+    conn.close()
+    st.success("Chat logs cleared!")
+
+
+def display_chat():
+    conversation_history = read_conversation_history()
+    for conversation in conversation_history:
+        user_id, timestamp, user_input, response = conversation
+        st.markdown(
+            f"""
+            <div class="conversation-log">
+                <div class="conversation">
+                    <div class="response">
+                        <strong>Response:</strong><br>{user_input}
+                    </div>
+                    <div class="user-input">
+                        <strong>User Input:</strong><br>{response}
+                    </div>
+                </div>
+                <div class="timestamp">Timestamp: {timestamp}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    # Login component
+
+
+def login_component():
+    st.subheader("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username == "user" and password == "password":  # Simple hardcoded check
+            st.session_state["logged_in"] = True
+            st.success("Logged in successfully!")
         else:
-            st.error("Please enter a product description to get recommendations.")
+            st.error("Invalid username or password.")
 
-# Run the app
+
+# Register component
+def register_component():
+    st.subheader("Register")
+    useremail = st.text_input("Email")
+    fullname = st.text_input("FullName")
+    userphoneno = st.text_input("Phone")
+    password = st.text_input("Passwords", type="password")
+    passwords = st.text_input("Confirm Password", type="password")
+
+    if st.button("Register"):
+        if (
+            useremail == "user@gmail.com"
+            and password == "password"
+            and passwords == password
+            and fullname > 4
+            and len(userphoneno) == 10
+        ):  # Simple hardcoded check
+            st.session_state["Registered"] = True
+            st.success("Registered successfully!")
+        elif password == "password" and passwords != password:
+            st.session_state["Registered"] = False
+            st.error("wrong password retyped.")
+        else:
+            st.session_state["Registered"] = False
+            st.error("member already logged in or wrong password retyped.")
+
+
+# Functions Tab
+# 1 . Call api and get responce
+def send_prompt_request(message):
+    api_url = "https://jubgpt-f5g4ceeahbh9ephy.westeurope-01.azurewebsites.net/api/jubchat/inquire"
+    headers = {"Content-Type": "application/json"}  # No API key needed
+    response = requests.post(api_url, headers=headers, json=message)
+    # Check for 400 response content
+    if response.status_code == 400:
+        response.raise_for_status()
+    responce_feedback = response.text
+    return responce_feedback
+
+
+# 2. Get User Inputs
+def get_user_inputs():
+    user_input = st.text_area(
+        "Describe what you're looking for",
+        value="" if not st.session_state.clear_input else "",
+        placeholder="E.g., I need insurance for my car in case of accidents and theft.",
+        key="user_input_area",
+    )
+    return user_input
+
+
+# 3. Get prompt response from Jubilee GPT
+def process_user_request(conn):
+    user_input = get_user_inputs()
+    response = send_prompt_request(user_input)
+    return response
+
+
+# 4 . Logging function
+def log_conversation(user_input, responce_feedback):
+    with open(LOG_FILE, "a") as log_file:
+        log_file.write(f"Timestamp: {datetime.datetime.now()}\n")
+        log_file.write(f"User Input: {user_input}\n")
+        log_file.write(f"Response: {responce_feedback}\n")
+        log_file.write("-" * 50 + "\n")
+
+
+# 5 . Read The conversations from the logs
+def read_conversation_log():
+    with open(LOG_FILE, "r") as log_file:
+        return log_file.read()
+
+
+def main(top_cards, styles, defaults_questions):
+    # Sidebar
+    with st.sidebar:
+        #  st.image("logo.webp", width=150)  # Replace with your logo path
+        st.image(
+            "https://microproducts.jubileeinsurance.com/images/abc/main-logo.svg",
+            width=150,
+        )
+        st.markdown(
+            '<div class="live-free" style="padding-top: 70px"></div>',
+            unsafe_allow_html=True,
+        )
+        st.image("advert4.png", use_column_width=True)  # Replace with your advert image
+        st.image(
+            "advert3.png", use_column_width=True
+        )  # Uncomment if you have a second advert
+        st.markdown("---")
+        st.markdown(
+            # Load Top Sections for the app
+            top_cards,
+            unsafe_allow_html=True,
+        )
+    # Main content
+    st.markdown(
+        # Load the styles for this section
+        styles,
+        unsafe_allow_html=True,
+    )
+    # Display the image with HTML and CSS, pointing to the static directory
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <img src="https://jubileeinsurance.com/ug/wp-content/uploads/2024/09/icon-top-1.png" width="120">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+        <div class="main-header">
+            <div style="text-align:center; font-weight: bold; font-size: 34px;" class="header-text">Jisort, Jielimishe With Jub-GPT</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="live-free">#LiveFree</div>', unsafe_allow_html=True)
+    st.markdown("### Quick Responses")
+    render_defaults_questions()
+
+    # Manage session state
+    if "conversation_history" not in st.session_state:
+        st.session_state.conversation_history = []
+    if "clear_input" not in st.session_state:
+        st.session_state.clear_input = False
+    # Process the input and recommend products
+    display_chat()
+    user_input = get_user_inputs()
+    if st.button("Get Recommendation"):
+        if user_input.lower() == "exit":
+            st.write("Exiting the conversation.")
+            st.stop()  # Stop the app if user types "exit"
+        elif user_input:
+            user_input += "  In Jubilee Insurance"
+            # Process the input and get relevant products
+            response = send_prompt_request(user_input)
+            log_conversation(user_input, response)
+            timestamp = datetime.datetime.now().isoformat()
+            user_id = "some_user_id"
+            store_conversation(timestamp, user_input, response)
+            st.session_state.conversation_history.append((user_input, response))
+            # Set flag to clear input field
+            st.session_state.clear_input = True
+            st.write(response)
+        # Button to clear chat
+    if st.button("Clear Chats"):
+        # store_conversation_snapshot()
+        clear_logs()
+
+
 if __name__ == "__main__":
-    main()
+    main(top_cards, styles, defaults_questions)
