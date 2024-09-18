@@ -50,7 +50,12 @@ def process_input(user_input, product_descriptions):
 def main():
     # Sidebar
     with st.sidebar:
-        st.image("logo.webp", width=150)  # Replace with your logo path
+         #  st.image("logo.webp", width=150)  # Replace with your logo path
+
+        st.image("https://microproducts.jubileeinsurance.com/images/abc/main-logo.svg", width=150) 
+
+        st.markdown('<div class="live-free" style="padding-top: 70px"></div>', unsafe_allow_html=True)
+
 
         st.image("advert4.png", use_column_width=True)  # Replace with your advert image
         st.image("advert3.png", use_column_width=True)  # Uncomment if you have a second advert
@@ -61,8 +66,9 @@ def main():
             """
             <div style="display: flex; justify-content: space-between;">
                 <div class="footer-links" style="width: 45%;">
-                    <a class="sidebar-link" href="#">Terms & Conditions</a><br>
-                    <a class="sidebar-link" href="#">Privacy Policy</a>
+                    <a class="sidebar-link" target="_blank" href="https://jubileeinsurance.com/ke/blog/">Blog</a><br>
+                    <a class="sidebar-link" target="_blank" href="https://jubileeinsurance.com/ke/privacy/">Privacy Policy</a>
+                    <a class="sidebar-link" target="_blank" href="https://jubileeinsurance.com/ke">www.jubileeinsurance.com</a>
                 </div>
                 <div style="width: 45%;">
                     <div class="sidebar-contact">
@@ -124,7 +130,7 @@ def main():
             padding: 15px;
             border: 1px solid #ddd;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             background-color: #f9f9f9;
             width: 45%;
         }
@@ -133,18 +139,19 @@ def main():
         unsafe_allow_html=True
     )
 
-    # st.image("icon-top.png", width=150) 
+   # st.image("icon-top.png", width=250) 
 
     # Center the image using HTML and CSS
-    # st.markdown(
-    #     """
-    #     <div style="text-align: center;">
-    #         <img src="icon-top.png" width="150">
-    #     </div>
-    #     """,
-    #     unsafe_allow_html=True
-    # )
 
+    # Display the image with HTML and CSS, pointing to the static directory
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <img src="https://jubileeinsurance.com/ug/wp-content/uploads/2024/09/icon-top-1.png" width="120">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.markdown(
         """
@@ -178,12 +185,13 @@ def main():
     # Chat search bar
    # st.text_input("Type your question here:")
 
-    # Input area for user request
+  # Input area for user request
     user_input = st.text_area(
-        "Describe what you're looking for",
+        "**Describe what you're looking for**",  # Use Markdown for bold text
         value="",
         placeholder="E.g., I need insurance for my car in case of accidents and theft.",
     )
+
 
     # Process the input and recommend products
     if st.button("Get Recommendation"):
