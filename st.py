@@ -6,7 +6,7 @@ import requests
 import os
 import datetime
 import sqlite3
-
+import streamlit.components.v1 as components
 
 # Variables
 top_cards = """
@@ -227,6 +227,19 @@ def init_db():
         )
         """
     )
+
+    # Create users table to store registered users
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            useremail TEXT UNIQUE,
+            fullname TEXT,
+            userphoneno TEXT,
+            password TEXT
+        )
+        """
+    )
     conn.commit()
     return conn
 
@@ -256,6 +269,15 @@ def read_conversation_history():
     return rows
 
 
+def read_top_conversation_history():
+    conn = init_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM conversation_history ORDER BY timestamp ASC limit 1")
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
 def clear_logs():
     if os.path.exists(LOG_FILE):
         with open(LOG_FILE, "w") as log:
@@ -268,27 +290,109 @@ def clear_logs():
     st.success("Chat logs cleared!")
 
 
+def load_charts_from_api(message):
+    api_url = "https://jubgpt-f5g4ceeahbh9ephy.westeurope-01.azurewebsites.net/api/jubchat/inquire"
+    headers = {"Content-Type": "application/json"}  # No API key needed
+    response = requests.post(api_url, headers=headers, json=message)
+    # Check for 400 response content
+    if response.status_code == 400:
+        response.raise_for_status()
+    responce_feedback = response.text
+    return response
+
+
+def get_responce_from_llm_new_user(userid, message, chatid=0):
+    api_url = f"https://jubgpt-f5g4ceeahbh9ephy.westeurope-01.azurewebsites.net/api/jubchat/inquire/{userid}/chats/{chatid}"
+    headers = {"Content-Type": "application/json"}  # No API key needed
+    response = requests.post(api_url, headers=headers, json=message)
+    # Check for 400 response content
+    if response.status_code == 400:
+        response.raise_for_status()
+    response_json = response.json()
+    # Parse the response as JSON
+    chat_id = response_json.get("chatId", None)
+    answer = response_json.get("answer", "No answer provided")
+    return userid, chatid, message, answer
+
+
+# Initialize session state for button clicks
+if "button_clicked" not in st.session_state:
+    st.session_state.button_clicked = None
+
+
+def display_jcare_options():
+    # Create a container for buttons and text input
+    col1 = st.columns(1)
+    with col1[0]:
+        card_html = """  
+            <div style="border-radius: 10px; padding: 20px;   
+                        margin: 20px; background-color: #f9f9f9;   
+                        cursor: pointer; text-align: left;   
+                        transition: box-shadow 0.3s ease;   
+                        width: calc(100% - 60px); max-width: 100%; display: inline-block;">  
+                <a href="https://jubileeinsurance.com/ke/product/j-care-medical-cover/'" target="_blank" style="text-decoration: none; color: black;">  
+                    <p>Proceed to buy a J Care policy and get a policy in 5 mins!?</p>  
+                </a>  
+            </div>  
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
+
+
+def display_top_chat():
+    from datetime import datetime
+
+    conversation_history = read_top_conversation_history()
+    for conversation in conversation_history:
+        user_id, timestamp, user_input, response = conversation
+        timestamp = datetime.fromisoformat(timestamp).strftime("%d/%m/%Y, %H:%M:%S")
+        # Display the user input message (if available)
+        if user_input:
+            col1, col2 = st.columns([3, 1])  # User message aligned to the right
+            with col1:
+                st.markdown(
+                    f"<div style='background-color: #e1ffc7; padding: 10px; border-radius: 10px; margin-bottom: 10px;'>"
+                    f"<b>Me:</b> {user_input} <br><small style='color: grey;'>{timestamp}</small></div>",
+                    unsafe_allow_html=True,
+                )
+
+        # Display the response message (if available)
+        if response:
+            col1, col2 = st.columns([1, 3])  # Response message aligned to the left
+            with col2:
+                st.markdown(
+                    f"<div style='background-color: #f1f1f1; padding: 10px; border-radius: 10px; margin-bottom: 10px;'>"
+                    f"<b>Ans:</b> {response} <br><small style='color: grey;'>{timestamp}</small></div>",
+                    unsafe_allow_html=True,
+                )
+
+
+# Function to display messages with timestamps
 def display_chat():
+    from datetime import datetime
+
     conversation_history = read_conversation_history()
     for conversation in conversation_history:
         user_id, timestamp, user_input, response = conversation
-        st.markdown(
-            f"""
-            <div class="conversation-log">
-                <div class="conversation">
-                    <div class="response">
-                        <strong>Response:</strong><br>{user_input}
-                    </div>
-                    <div class="user-input">
-                        <strong>User Input:</strong><br>{response}
-                    </div>
-                </div>
-                <div class="timestamp">Timestamp: {timestamp}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    # Login component
+        timestamp = datetime.fromisoformat(timestamp).strftime("%d/%m/%Y, %H:%M:%S")
+        # Display the user input message (if available)
+        if user_input:
+            col1, col2 = st.columns([3, 1])  # User message aligned to the right
+            with col1:
+                st.markdown(
+                    f"<div style='background-color: #e1ffc7; padding: 10px; border-radius: 10px; margin-bottom: 10px;'>"
+                    f"<b>Me:</b> {user_input} <br><small style='color: grey;'>{timestamp}</small></div>",
+                    unsafe_allow_html=True,
+                )
+
+        # Display the response message (if available)
+        if response:
+            col1, col2 = st.columns([1, 3])  # Response message aligned to the left
+            with col2:
+                st.markdown(
+                    f"<div style='background-color: #f1f1f1; padding: 10px; border-radius: 10px; margin-bottom: 10px;'>"
+                    f"<b>Ans:</b> {response} <br><small style='color: grey;'>{timestamp}</small></div>",
+                    unsafe_allow_html=True,
+                )
 
 
 def login_component():
@@ -358,7 +462,8 @@ def get_user_inputs():
 # 3. Get prompt response from Jubilee GPT
 def process_user_request(conn):
     user_input = get_user_inputs()
-    response = send_prompt_request(user_input)
+    response = get_responce_from_llm_new_user(1, message=user_input, chatid=0)
+    # response = send_prompt_request(user_input)
     return response
 
 
@@ -389,6 +494,19 @@ def main(top_cards, styles, defaults_questions):
             '<div class="live-free" style="padding-top: 70px"></div>',
             unsafe_allow_html=True,
         )
+        signup_options = ["Login", "Sign Up", "Try Me !!"]
+        # if st.radio("Please Login to proceed", signup_options, key="nav_list"):
+        selected_option = st.radio(
+            "Please Login to proceed", signup_options, key="nav_list"
+        )
+        # Check which option was selected
+        if selected_option == "Login":
+            st.write("Please Login to proceed")
+            login_component()
+        elif selected_option == "Sign Up":
+            st.write("Please Sign Up")
+            register_component()
+        st.divider()
         st.image("advert4.png", use_column_width=True)  # Replace with your advert image
         st.image(
             "advert3.png", use_column_width=True
@@ -409,7 +527,7 @@ def main(top_cards, styles, defaults_questions):
     st.markdown(
         """
         <div style="text-align: center;">
-            <img src="https://jubileeinsurance.com/ug/wp-content/uploads/2024/09/icon-top-1.png" width="120">
+            <img src="https://jubileeinsurance.com/ug/wp-content/uploads/2024/09/JubiAI-logo.png" width="250">
         </div>
         """,
         unsafe_allow_html=True,
@@ -418,7 +536,7 @@ def main(top_cards, styles, defaults_questions):
     st.markdown(
         """
         <div class="main-header">
-            <div style="text-align:center; font-weight: bold; font-size: 34px;" class="header-text">Jisort, Jielimishe With Jub-GPT</div>
+            <div style="text-align:center; font-weight: bold; font-size: 34px;" class="header-text">Jisort, Jielimishe With Jubi-AI</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -436,14 +554,21 @@ def main(top_cards, styles, defaults_questions):
     # Process the input and recommend products
     display_chat()
     user_input = get_user_inputs()
-    if st.button("Get Recommendation"):
+    if st.button("Submit"):
         if user_input.lower() == "exit":
             st.write("Exiting the conversation.")
             st.stop()  # Stop the app if user types "exit"
         elif user_input:
             user_input += "  In Jubilee Insurance"
             # Process the input and get relevant products
-            response = send_prompt_request(user_input)
+
+            response = get_responce_from_llm_new_user(1, message=user_input, chatid=0)[
+                3
+            ]
+            # st.write(response)
+            if "jubilee" in response.lower():
+                display_jcare_options()
+            # st.markdown(card_html, unsafe_allow_html=True)
             log_conversation(user_input, response)
             timestamp = datetime.datetime.now().isoformat()
             user_id = "some_user_id"
@@ -451,7 +576,7 @@ def main(top_cards, styles, defaults_questions):
             st.session_state.conversation_history.append((user_input, response))
             # Set flag to clear input field
             st.session_state.clear_input = True
-            st.write(response)
+            display_top_chat()
         # Button to clear chat
     if st.button("Clear Chats"):
         # store_conversation_snapshot()
