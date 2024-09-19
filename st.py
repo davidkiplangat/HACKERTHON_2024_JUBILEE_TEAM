@@ -7,6 +7,7 @@ import os
 import datetime
 import sqlite3
 import streamlit.components.v1 as components
+import time
 
 # Variables
 top_cards = """
@@ -554,33 +555,27 @@ def main(top_cards, styles, defaults_questions):
     # Process the input and recommend products
     display_chat()
     user_input = get_user_inputs()
-    if st.button("Submit"):
-        if user_input.lower() == "exit":
-            st.write("Exiting the conversation.")
-            st.stop()  # Stop the app if user types "exit"
-        elif user_input:
-            user_input += "  In Jubilee Insurance"
-            # Process the input and get relevant products
-
-            response = get_responce_from_llm_new_user(1, message=user_input, chatid=0)[
-                3
-            ]
-            # st.write(response)
-            if "jubilee" in response.lower():
-                display_jcare_options()
-            # st.markdown(card_html, unsafe_allow_html=True)
-            log_conversation(user_input, response)
-            timestamp = datetime.datetime.now().isoformat()
-            user_id = "some_user_id"
-            store_conversation(timestamp, user_input, response)
-            st.session_state.conversation_history.append((user_input, response))
-            # Set flag to clear input field
-            st.session_state.clear_input = True
-            display_top_chat()
-        # Button to clear chat
-    if st.button("Clear Chats"):
-        # store_conversation_snapshot()
-        clear_logs()
+    response = get_responce_from_llm_new_user(1, message=user_input, chatid=0)[3]
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Submit"):
+            if user_input:
+                user_input += "  In Jubilee Insurance"
+                # Process the input and get relevant products
+                if "j-care" in response.lower():
+                    display_jcare_options()
+                # st.markdown(card_html, unsafe_allow_html=True)
+                log_conversation(user_input, response)
+                timestamp = datetime.datetime.now().isoformat()
+                store_conversation(timestamp, user_input, response)
+                st.session_state.conversation_history.append((user_input, response))
+                st.session_state.clear_input = True
+                # display_chat()
+    with col2:
+        if st.button("Clear Chats"):
+            # store_conversation_snapshot()
+            clear_logs()
+    st.write(response)
 
 
 if __name__ == "__main__":
