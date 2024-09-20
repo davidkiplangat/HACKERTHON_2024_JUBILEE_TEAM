@@ -1,11 +1,11 @@
 # **HACKERTHON 2024 - JUBILEE TEAM**
 
-Welcome to the **JubiAI** repository! This repository contains all the working files and resources used for the **Microsoft Hackerthon 2024** project by the Jubilee Team.
+Welcome to the **AskJubiAI** repository! This repository contains all the working files and resources used for the **Microsoft Hackerthon 2024** project by the Jubilee Team.
 
 ---
 
 ## **Project Overview**
-**JubiAI** is an innovative solution developed during the **Microsoft Hackerthon 2024**. This project focuses on [insert brief description of your project’s purpose, e.g., AI-powered insurance claim processing or customer service automation]. The following are the components that make up the JubiAI solution.
+**AskJubiAI** is an intelligent insurance advisory innovative solution developed during the **Microsoft Hackerthon 2024**. The following are the components that make up the JubiAI solution.
 
 ---
 
